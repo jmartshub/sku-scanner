@@ -243,6 +243,7 @@
   }
   .empty{ color:var(--sub); font-size:12px; padding:6px 0 14px; }
 </style>
+<script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
 </head>
 <body>
 <div class="app">
@@ -418,71 +419,63 @@
 
   renderHistory();
 
-  // Camera + barcode detection
+  // Camera + barcode detection (ZXing — pure JS, works on iOS Safari and Android Chrome alike)
+  let codeReader = null;
+  let lastZXingResult = null;
+  let lastZXingTime = 0;
+
   async function startScanner(){
-    if(!('BarcodeDetector' in window)){
-      showUnsupported();
+    if(typeof ZXing === 'undefined'){
+      showUnsupported('Scanning library failed to load — check your connection and reload.');
       return;
     }
 
-    let formats = ['ean_13','ean_8','upc_a','upc_e','code_128','code_39','itf','qr_code'];
-    try{
-      const supported = await window.BarcodeDetector.getSupportedFormats();
-      formats = formats.filter(f => supported.includes(f));
-      if(formats.length === 0) formats = supported;
-    }catch(e){}
+    const hints = new Map();
+    const formats = [
+      ZXing.BarcodeFormat.EAN_13,
+      ZXing.BarcodeFormat.EAN_8,
+      ZXing.BarcodeFormat.UPC_A,
+      ZXing.BarcodeFormat.UPC_E,
+      ZXing.BarcodeFormat.CODE_128,
+      ZXing.BarcodeFormat.CODE_39,
+      ZXing.BarcodeFormat.ITF,
+      ZXing.BarcodeFormat.QR_CODE,
+      ZXing.BarcodeFormat.DATA_MATRIX
+    ];
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
+    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
 
-    let detector;
-    try{
-      detector = new window.BarcodeDetector({formats});
-    }catch(e){
-      showUnsupported();
-      return;
-    }
+    codeReader = new ZXing.BrowserMultiFormatReader(hints);
 
-    let stream;
     try{
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' } },
-        audio: false
-      });
+      await codeReader.decodeFromConstraints(
+        { video: { facingMode: { ideal: 'environment' } }, audio: false },
+        video,
+        (result, err) => {
+          if(result){
+            const value = result.getText();
+            const now = Date.now();
+            if(value && !(value === lastZXingResult && (now - lastZXingTime) < DEDUPE_WINDOW_MS)){
+              lastZXingResult = value;
+              lastZXingTime = now;
+              addScan(value, {auto:true});
+            }
+          }
+          // NotFoundException fires continuously while no code is in view — ignore it
+        }
+      );
+      statusEl.textContent = 'Scanning...';
     }catch(err){
       statusEl.textContent = 'Camera access denied — enable it in browser settings';
       reticle.style.display = 'none';
       scanline.style.display = 'none';
-      return;
     }
-
-    video.srcObject = stream;
-    await video.play();
-    statusEl.textContent = 'Scanning...';
-
-    let scanning = true;
-    async function tick(){
-      if(!scanning) return;
-      try{
-        const barcodes = await detector.detect(video);
-        if(barcodes.length > 0){
-          const value = barcodes[0].rawValue;
-          if(value) addScan(value, {auto:true});
-        }
-      }catch(e){
-        // frame not ready or transient error, ignore
-      }
-      requestAnimationFrame(tick);
-    }
-    requestAnimationFrame(tick);
-
-    document.addEventListener('visibilitychange', () => {
-      scanning = document.visibilityState === 'visible';
-      if(scanning) requestAnimationFrame(tick);
-    });
   }
 
-  function showUnsupported(){
+  function showUnsupported(message){
     cameraSection.innerHTML = '<div class="unsupported">' +
-      '<b>Live camera scanning isn\'t supported in this browser.</b><br><br>' +
-      'This works best in <b>Chrome on Android</b>. On iPhone/Safari, use the manual entry field below to add SKUs — everything else (copy, history) still works.' +
+      '<b>' + (message || 'Live camera scanning isn\'t available right now.') + '</b><br><br>' +
+      'You can still use the manual entry field below to add SKUs — copy and history work the same either way.' +
       '</div>';
   }
 
