@@ -65,84 +65,23 @@
     background:#000;
     box-shadow:0 0 0 1px var(--line);
   }
-  .zoom-wrap{
-    position:absolute;
-    inset:0;
-    transform-origin:center center;
-  }
   video{
     width:100%;
     height:100%;
     object-fit:cover;
     display:block;
   }
-  #overlayLayer{
+  .corner{
     position:absolute;
-    inset:0;
-    pointer-events:none;
-  }
-  .code-box{
-    position:absolute;
+    width:24px; height:24px;
     border:2.5px solid var(--accent);
-    border-radius:8px;
-    background:rgba(255,180,84,0.12);
-    pointer-events:auto;
-    box-shadow:0 0 0 9999px rgba(0,0,0,0.06);
-  }
-  .code-box .tag{
-    position:absolute;
-    top:-24px; left:0;
-    background:var(--accent);
-    color:var(--accent-ink);
-    font-size:10.5px;
-    font-weight:700;
-    padding:3px 8px;
-    border-radius:6px;
-    white-space:nowrap;
-    max-width:160px;
-    overflow:hidden;
-    text-overflow:ellipsis;
-  }
-  .code-box.tapped{ background:rgba(94,230,168,0.28); border-color:#5ee6a8; }
-  .code-box.tapped .tag{ background:#5ee6a8; }
-
-  .status-pill{
-    position:absolute;
-    top:12px; left:50%;
-    transform:translateX(-50%);
-    background:rgba(10,11,15,0.62);
-    backdrop-filter:blur(6px);
-    -webkit-backdrop-filter:blur(6px);
-    padding:6px 13px;
-    border-radius:100px;
-    font-size:11.5px;
-    color:var(--text);
-    letter-spacing:0.01em;
-    white-space:nowrap;
-    max-width:88%;
-    overflow:hidden;
-    text-overflow:ellipsis;
-    z-index:5;
-  }
-
-  .flash{
-    position:absolute; inset:0;
-    background:var(--accent);
-    opacity:0;
+    opacity:0.85;
     pointer-events:none;
-    z-index:6;
   }
-  .flash.hit{ animation:flash 320ms ease-out; }
-  @keyframes flash{ 0%{opacity:0.4;} 100%{opacity:0;} }
-
-  .unsupported{
-    padding:28px 24px;
-    text-align:center;
-    color:var(--sub);
-    font-size:13.5px;
-    line-height:1.6;
-  }
-  .unsupported b{ color:var(--text); }
+  .corner.tl{ top:26%; left:22%; border-right:none; border-bottom:none; border-top-left-radius:8px; }
+  .corner.tr{ top:26%; right:22%; border-left:none; border-bottom:none; border-top-right-radius:8px; }
+  .corner.bl{ bottom:26%; left:22%; border-right:none; border-top:none; border-bottom-left-radius:8px; }
+  .corner.br{ bottom:26%; right:22%; border-left:none; border-top:none; border-bottom-right-radius:8px; }
 
   .zoom-row{
     position:absolute;
@@ -156,7 +95,6 @@
     -webkit-backdrop-filter:blur(6px);
     border-radius:100px;
     padding:6px 10px;
-    z-index:5;
   }
   .zoom-row button{
     width:26px; height:26px;
@@ -194,6 +132,60 @@
     width:30px;
     text-align:center;
   }
+
+  .status-pill{
+    position:absolute;
+    top:12px; left:50%;
+    transform:translateX(-50%);
+    background:rgba(10,11,15,0.62);
+    backdrop-filter:blur(6px);
+    -webkit-backdrop-filter:blur(6px);
+    padding:6px 13px;
+    border-radius:100px;
+    font-size:11.5px;
+    color:var(--text);
+    letter-spacing:0.01em;
+    white-space:nowrap;
+    max-width:88%;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+
+  .flash{
+    position:absolute; inset:0;
+    background:var(--accent);
+    opacity:0;
+    pointer-events:none;
+  }
+  .flash.hit{ animation:flash 320ms ease-out; }
+  @keyframes flash{ 0%{opacity:0.5;} 100%{opacity:0;} }
+
+  .scan-btn{
+    display:block;
+    width:calc(100% - 32px);
+    margin:0 16px 14px;
+    background:var(--accent);
+    color:var(--accent-ink);
+    border:none;
+    border-radius:14px;
+    padding:15px 0;
+    font-family:inherit;
+    font-size:15px;
+    font-weight:700;
+    letter-spacing:0.02em;
+  }
+  .scan-btn:active{ transform:scale(0.98); }
+  .scan-btn.busy{ background:var(--panel-2); color:var(--sub); }
+  .scan-btn.miss{ background:var(--miss); color:#20100d; }
+
+  .unsupported{
+    padding:28px 24px;
+    text-align:center;
+    color:var(--sub);
+    font-size:13.5px;
+    line-height:1.6;
+  }
+  .unsupported b{ color:var(--text); }
 
   .result-card{
     margin:0 16px 12px;
@@ -341,10 +333,11 @@
   </header>
 
   <div id="cameraSection" class="camera-wrap">
-    <div class="zoom-wrap" id="zoomWrap">
-      <video id="video" playsinline muted autoplay></video>
-      <div id="overlayLayer"></div>
-    </div>
+    <video id="video" playsinline muted autoplay></video>
+    <div class="corner tl"></div>
+    <div class="corner tr"></div>
+    <div class="corner bl"></div>
+    <div class="corner br"></div>
     <div class="status-pill" id="status">Loading camera...</div>
     <div class="flash" id="flash"></div>
     <div class="zoom-row" id="zoomRow">
@@ -354,6 +347,8 @@
       <span class="zoom-label" id="zoomLabel">1.0x</span>
     </div>
   </div>
+
+  <button class="scan-btn" id="scanBtn">Scan</button>
 
   <div class="result-card" id="resultCard">
     <div id="resultBody"><span class="empty">No code scanned yet</span></div>
@@ -377,8 +372,6 @@
 <script>
 (function(){
   const video = document.getElementById('video');
-  const zoomWrap = document.getElementById('zoomWrap');
-  const overlayLayer = document.getElementById('overlayLayer');
   const statusEl = document.getElementById('status');
   const flashEl = document.getElementById('flash');
   const cameraSection = document.getElementById('cameraSection');
@@ -388,11 +381,7 @@
   const manualInput = document.getElementById('manualInput');
   const manualAdd = document.getElementById('manualAdd');
   const clearHistoryBtn = document.getElementById('clearHistory');
-  const zoomRow = document.getElementById('zoomRow');
-  const zoomSlider = document.getElementById('zoomSlider');
-  const zoomLabel = document.getElementById('zoomLabel');
-  const zoomOutBtn = document.getElementById('zoomOut');
-  const zoomInBtn = document.getElementById('zoomIn');
+  const scanBtn = document.getElementById('scanBtn');
 
   let history = [];
   let lastCode = null;
@@ -471,9 +460,7 @@
     renderHistory();
   });
 
-  // Selecting a highlighted code (tap) does exactly what a scan used to do:
-  // copy it to the clipboard and drop it into the result card + history.
-  function selectCode(code){
+  function addScan(code){
     lastCode = code;
     history.unshift({code, time: timeString()});
     if(history.length > 50) history.pop();
@@ -489,7 +476,7 @@
   manualAdd.addEventListener('click', () => {
     const val = manualInput.value.trim();
     if(!val) return;
-    selectCode(val);
+    addScan(val);
     manualInput.value = '';
   });
   manualInput.addEventListener('keydown', (e) => {
@@ -498,16 +485,23 @@
 
   renderHistory();
 
-  // ---- Camera + continuous multi-code live detection (like iPhone's Camera app QR view) ----
+  const zoomRow = document.getElementById('zoomRow');
+  const zoomSlider = document.getElementById('zoomSlider');
+  const zoomLabel = document.getElementById('zoomLabel');
+  const zoomOutBtn = document.getElementById('zoomOut');
+  const zoomInBtn = document.getElementById('zoomIn');
+
+  // Camera preview + tap-to-scan capture (ZXing + jsQR — works on iOS Safari and Android Chrome alike)
   let codeReader = null;
   let videoTrack = null;
+  let busy = false;
   let hasHardwareZoom = false;
-  let zoomMin = 1, zoomMax = 3;
-  let zoomLevel = 1;
-  let detecting = false;
-  let barcodeTickCounter = 0;
+  let zoomMin = 1, zoomMax = 3, zoomStep = 0.05;
+  let zoomLevel = 1; // used for digital-zoom fallback crop math
 
-  function setZoomLabel(v){ zoomLabel.textContent = v.toFixed(1) + 'x'; }
+  function setZoomLabel(v){
+    zoomLabel.textContent = v.toFixed(1) + 'x';
+  }
 
   async function applyZoom(value){
     value = Math.min(zoomMax, Math.max(zoomMin, value));
@@ -516,9 +510,11 @@
     setZoomLabel(value);
     if(hasHardwareZoom && videoTrack){
       try{ await videoTrack.applyConstraints({ advanced: [{ zoom: value }] }); }
-      catch(e){ zoomWrap.style.transform = 'scale(' + value + ')'; }
+      catch(e){ /* ignore — fall through, digital crop math still applies below */ }
     }else{
-      zoomWrap.style.transform = 'scale(' + value + ')';
+      // Digital zoom fallback: visually scale the preview; the decode crop is
+      // shrunk to match in captureAndScan() so what you frame is what gets scanned.
+      video.style.transform = 'scale(' + value + ')';
     }
   }
 
@@ -526,6 +522,7 @@
   zoomOutBtn.addEventListener('click', () => applyZoom(zoomLevel - 0.2));
   zoomInBtn.addEventListener('click', () => applyZoom(zoomLevel + 0.2));
 
+  // Pinch-to-zoom
   let pinchStartDist = null;
   let pinchStartZoom = 1;
   function touchDist(touches){
@@ -534,12 +531,16 @@
     return Math.hypot(dx, dy);
   }
   cameraSection.addEventListener('touchstart', (e) => {
-    if(e.touches.length === 2){ pinchStartDist = touchDist(e.touches); pinchStartZoom = zoomLevel; }
+    if(e.touches.length === 2){
+      pinchStartDist = touchDist(e.touches);
+      pinchStartZoom = zoomLevel;
+    }
   }, { passive: true });
   cameraSection.addEventListener('touchmove', (e) => {
     if(e.touches.length === 2 && pinchStartDist){
       e.preventDefault();
-      applyZoom(pinchStartZoom * (touchDist(e.touches) / pinchStartDist));
+      const ratio = touchDist(e.touches) / pinchStartDist;
+      applyZoom(pinchStartZoom * ratio);
     }
   }, { passive: false });
   cameraSection.addEventListener('touchend', (e) => {
@@ -547,25 +548,33 @@
   });
 
   async function startCamera(){
-    if(typeof ZXing === 'undefined' && typeof jsQR === 'undefined'){
-      showUnsupported('Scanning libraries failed to load — check your connection and reload.');
+    if(typeof ZXing === 'undefined'){
+      showUnsupported('Scanning library failed to load — check your connection and reload.');
       return;
     }
-    if(typeof ZXing !== 'undefined'){
-      const hints = new Map();
-      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-        ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8,
-        ZXing.BarcodeFormat.UPC_A, ZXing.BarcodeFormat.UPC_E,
-        ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.CODE_39,
-        ZXing.BarcodeFormat.ITF
-      ]);
-      hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-      codeReader = new ZXing.BrowserMultiFormatReader(hints, 150);
-    }
+
+    const hints = new Map();
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+      ZXing.BarcodeFormat.EAN_13,
+      ZXing.BarcodeFormat.EAN_8,
+      ZXing.BarcodeFormat.UPC_A,
+      ZXing.BarcodeFormat.UPC_E,
+      ZXing.BarcodeFormat.CODE_128,
+      ZXing.BarcodeFormat.CODE_39,
+      ZXing.BarcodeFormat.ITF,
+      ZXing.BarcodeFormat.QR_CODE,
+      ZXing.BarcodeFormat.DATA_MATRIX
+    ]);
+    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+    codeReader = new ZXing.BrowserMultiFormatReader(hints, 150);
 
     try{
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        },
         audio: false
       });
       video.srcObject = stream;
@@ -579,160 +588,113 @@
             hasHardwareZoom = true;
             zoomMin = caps.zoom.min ?? 1;
             zoomMax = caps.zoom.max ?? 3;
-            zoomSlider.min = zoomMin; zoomSlider.max = zoomMax;
-            zoomSlider.step = caps.zoom.step ?? 0.1;
-            zoomSlider.value = zoomMin; zoomLevel = zoomMin;
+            zoomStep = caps.zoom.step ?? 0.1;
+            zoomSlider.min = zoomMin;
+            zoomSlider.max = zoomMax;
+            zoomSlider.step = zoomStep;
+            zoomSlider.value = zoomMin;
+            zoomLevel = zoomMin;
             setZoomLabel(zoomMin);
           }
-        }catch(e){}
+        }catch(e){ /* zoom capability check failed — digital fallback still works */ }
       }
 
-      statusEl.textContent = 'Point at any code';
-      startDetectionLoop();
+      statusEl.textContent = 'Frame the code, then tap Scan';
+      scanBtn.disabled = false;
     }catch(err){
       statusEl.textContent = 'Camera access denied — enable it in Settings';
+      document.querySelectorAll('.corner').forEach(el => el.style.display = 'none');
+      scanBtn.style.display = 'none';
       zoomRow.style.display = 'none';
     }
   }
 
-  // Finds every QR code jsQR can see in one frame by repeatedly masking out
-  // whatever it just found and searching again — jsQR itself only returns one
-  // result per call, so this is the standard trick to get multiple.
-  function findAllQRCodes(imageData, maxCodes){
-    const codes = [];
-    const data = new Uint8ClampedArray(imageData.data);
-    const w = imageData.width, h = imageData.height;
-    for(let i = 0; i < maxCodes; i++){
-      const result = jsQR(data, w, h);
-      if(!result) break;
-      codes.push(result);
-      const pts = [result.location.topLeftCorner, result.location.topRightCorner,
-                   result.location.bottomRightCorner, result.location.bottomLeftCorner];
-      const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
-      const minX = Math.max(0, Math.floor(Math.min(...xs)) - 4);
-      const maxX = Math.min(w, Math.ceil(Math.max(...xs)) + 4);
-      const minY = Math.max(0, Math.floor(Math.min(...ys)) - 4);
-      const maxY = Math.min(h, Math.ceil(Math.max(...ys)) + 4);
-      for(let y = minY; y < maxY; y++){
-        for(let x = minX; x < maxX; x++){
-          const idx = (y * w + x) * 4;
-          data[idx] = 0; data[idx+1] = 0; data[idx+2] = 0; data[idx+3] = 255;
-        }
+  async function focusAt(){
+    if(!videoTrack || !videoTrack.getCapabilities) return;
+    try{
+      const caps = videoTrack.getCapabilities();
+      if(caps.focusMode && caps.focusMode.includes('single-shot')){
+        await videoTrack.applyConstraints({ advanced: [{ focusMode: 'single-shot' }] });
       }
-    }
-    return codes;
+    }catch(e){ /* not supported on this device — ignore */ }
   }
 
-  function nativeToCss(x, y){
-    const vw = video.videoWidth, vh = video.videoHeight;
-    const cw = video.clientWidth, ch = video.clientHeight;
-    const scale = Math.max(cw / vw, ch / vh);
-    const dispW = vw * scale, dispH = vh * scale;
-    const offX = (dispW - cw) / 2, offY = (dispH - ch) / 2;
-    return { x: x * scale - offX, y: y * scale - offY };
-  }
-
-  function renderBoxes(entries){
-    overlayLayer.innerHTML = '';
-    entries.forEach((entry, idx) => {
-      const box = document.createElement('div');
-      box.className = 'code-box';
-      if(entry.rect){
-        box.style.left = entry.rect.x + 'px';
-        box.style.top = entry.rect.y + 'px';
-        box.style.width = entry.rect.w + 'px';
-        box.style.height = entry.rect.h + 'px';
-      }else{
-        // No position available (e.g. some barcode reads) — show a bar across the bottom of the view
-        box.style.left = '8%';
-        box.style.right = '8%';
-        box.style.bottom = '18%';
-        box.style.width = 'auto';
-        box.style.height = '40px';
-      }
-      const tag = document.createElement('div');
-      tag.className = 'tag';
-      tag.textContent = entry.text.length > 22 ? entry.text.slice(0, 22) + '…' : entry.text;
-      box.appendChild(tag);
-      box.addEventListener('click', () => {
-        box.classList.add('tapped');
-        selectCode(entry.text);
-        setTimeout(() => box.classList.remove('tapped'), 500);
-      });
-      overlayLayer.appendChild(box);
-    });
-    statusEl.textContent = entries.length > 0
-      ? entries.length + ' code' + (entries.length > 1 ? 's' : '') + ' found — tap one'
-      : 'Point at any code';
-  }
-
-  async function detectTick(){
-    if(detecting || !video.videoWidth){ scheduleNextTick(); return; }
-    detecting = true;
-
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    const entries = [];
-
+  // Runs our own frame-capture loop and tries two independent decoders on every frame:
+  // jsQR first (a dedicated, extremely reliable QR-only decoder with no dependency on
+  // which ZXing convenience methods happen to be bundled), then ZXing's decodeFromImageUrl
+  // as a fallback for 1D barcodes (EAN/UPC/Code128/etc), which is confirmed to work in
+  // this build.
+  async function decodeCanvas(canvas){
     if(typeof jsQR === 'function'){
       try{
+        const ctx = canvas.getContext('2d');
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const qrCodes = findAllQRCodes(imageData, 4);
-        qrCodes.forEach(q => {
-          const pts = [q.location.topLeftCorner, q.location.topRightCorner,
-                       q.location.bottomRightCorner, q.location.bottomLeftCorner]
-                       .map(p => nativeToCss(p.x, p.y));
-          const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
-          const minX = Math.min(...xs), maxX = Math.max(...xs);
-          const minY = Math.min(...ys), maxY = Math.max(...ys);
-          entries.push({
-            text: q.data,
-            rect: { x: minX, y: minY, w: Math.max(30, maxX - minX), h: Math.max(30, maxY - minY) }
-          });
-        });
-      }catch(e){}
+        const qr = jsQR(imageData.data, imageData.width, imageData.height);
+        if(qr && qr.data) return qr.data;
+      }catch(e){ /* ignore, try ZXing next */ }
     }
-
-    // Barcode detection (ZXing) — checked less often since it's heavier (data URL + image
-    // decode round trip), only when no QR already found this tick.
-    barcodeTickCounter++;
-    if(entries.length === 0 && codeReader && barcodeTickCounter % 2 === 0){
+    if(codeReader){
       try{
         const result = await codeReader.decodeFromImageUrl(canvas.toDataURL('image/png'));
-        if(result){
-          const text = result.getText();
-          let rect = null;
-          try{
-            const points = result.getResultPoints();
-            if(points && points.length >= 2){
-              const pts = points.map(p => nativeToCss(p.getX(), p.getY()));
-              const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
-              const minX = Math.min(...xs) - 30, maxX = Math.max(...xs) + 30;
-              const minY = Math.min(...ys) - 20, maxY = Math.max(...ys) + 20;
-              rect = { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
-            }
-          }catch(e){}
-          entries.push({ text, rect });
-        }
-      }catch(e){ /* no barcode found this tick */ }
+        if(result) return result.getText();
+      }catch(e){ /* not found this way either */ }
+    }
+    return null;
+  }
+
+  async function captureAndScan(){
+    if(busy || !video.videoWidth) return;
+    busy = true;
+    scanBtn.classList.remove('miss');
+    scanBtn.classList.add('busy');
+    scanBtn.textContent = 'Scanning...';
+    statusEl.textContent = 'Analyzing...';
+
+    await focusAt();
+    await new Promise(r => setTimeout(r, 150));
+
+    // Crop to the centered box shown by the corner-bracket guide (roughly the middle
+    // 56% of the frame) so a page with several barcodes only scans the one that's
+    // actually framed, instead of whichever one ZXing/jsQR happens to find first.
+    // When using digital-zoom fallback (no hardware zoom track), shrink the crop
+    // further to match what's visually framed after the CSS scale.
+    const baseCropFraction = 0.56;
+    const effectiveFraction = hasHardwareZoom ? baseCropFraction : Math.min(baseCropFraction, baseCropFraction / zoomLevel);
+    const nativeSide = Math.min(video.videoWidth, video.videoHeight);
+    const cropSide = Math.max(64, nativeSide * effectiveFraction);
+    const sx = (video.videoWidth - cropSide) / 2;
+    const sy = (video.videoHeight - cropSide) / 2;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = cropSide;
+    canvas.height = cropSide;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+    const deadline = Date.now() + 4000;
+    let text = null;
+
+    while(Date.now() < deadline){
+      ctx.drawImage(video, sx, sy, cropSide, cropSide, 0, 0, cropSide, cropSide);
+      text = await decodeCanvas(canvas);
+      if(text) break;
+      await new Promise(r => setTimeout(r, 120));
     }
 
-    renderBoxes(entries);
-    detecting = false;
-    scheduleNextTick();
+    scanBtn.classList.remove('busy');
+    scanBtn.textContent = 'Scan';
+    busy = false;
+
+    if(text){
+      addScan(text);
+      statusEl.textContent = 'Scanned — tap Scan for the next one';
+    }else{
+      statusEl.textContent = 'No code found — reframe and try again';
+      scanBtn.classList.add('miss');
+      setTimeout(() => scanBtn.classList.remove('miss'), 900);
+    }
   }
 
-  function scheduleNextTick(){
-    setTimeout(detectTick, 450);
-  }
-
-  function startDetectionLoop(){
-    detectTick();
-  }
+  scanBtn.addEventListener('click', captureAndScan);
 
   function showUnsupported(message){
     cameraSection.innerHTML = '<div class="unsupported">' +
