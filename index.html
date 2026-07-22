@@ -90,7 +90,11 @@
     height:2px;
     background:var(--accent);
     box-shadow:0 0 8px var(--accent);
-    animation:sweep 1.8s ease-in-out infinite;
+    opacity:0;
+  }
+  .scanline.busy{
+    opacity:1;
+    animation:sweep 0.7s ease-in-out infinite;
   }
   @keyframes sweep{
     0%{ transform:translateY(0); }
@@ -105,6 +109,26 @@
     color:var(--sub);
     letter-spacing:0.04em;
   }
+  .scan-btn{
+    position:absolute;
+    left:50%;
+    bottom:22px;
+    transform:translateX(-50%);
+    background:var(--accent);
+    color:#0a1310;
+    border:none;
+    border-radius:999px;
+    padding:15px 34px;
+    font-family:inherit;
+    font-size:14px;
+    font-weight:700;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+    box-shadow:0 4px 18px rgba(0,0,0,0.4);
+  }
+  .scan-btn:active{ transform:translateX(-50%) scale(0.96); }
+  .scan-btn.busy{ background:var(--sub); color:var(--ink); }
+  .scan-btn.miss{ background:var(--warn); color:#20100d; }
   .flash{
     position:absolute; inset:0;
     background:var(--accent);
@@ -256,8 +280,9 @@
     <video id="video" playsinline muted autoplay></video>
     <div class="reticle" id="reticle"></div>
     <div class="scanline" id="scanline"></div>
-    <div class="status" id="status">Point camera at a barcode</div>
+    <div class="status" id="status">Point camera at a code, then tap Scan</div>
     <div class="flash" id="flash"></div>
+    <button class="scan-btn" id="scanBtn">Scan</button>
   </div>
 
   <div class="manual-row">
@@ -419,19 +444,20 @@
 
   renderHistory();
 
-  // Camera + barcode detection (ZXing — pure JS, works on iOS Safari and Android Chrome alike)
+  // Camera preview + tap-to-scan capture (ZXing — pure JS, works on iOS Safari and Android Chrome alike)
+  const scanBtn = document.getElementById('scanBtn');
   let codeReader = null;
-  let lastZXingResult = null;
-  let lastZXingTime = 0;
+  let videoTrack = null;
+  let busy = false;
 
-  async function startScanner(){
+  async function startCamera(){
     if(typeof ZXing === 'undefined'){
       showUnsupported('Scanning library failed to load — check your connection and reload.');
       return;
     }
 
     const hints = new Map();
-    const formats = [
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
       ZXing.BarcodeFormat.EAN_13,
       ZXing.BarcodeFormat.EAN_8,
       ZXing.BarcodeFormat.UPC_A,
@@ -441,36 +467,79 @@
       ZXing.BarcodeFormat.ITF,
       ZXing.BarcodeFormat.QR_CODE,
       ZXing.BarcodeFormat.DATA_MATRIX
-    ];
-    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
+    ]);
     hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-
     codeReader = new ZXing.BrowserMultiFormatReader(hints);
 
     try{
-      await codeReader.decodeFromConstraints(
-        { video: { facingMode: { ideal: 'environment' } }, audio: false },
-        video,
-        (result, err) => {
-          if(result){
-            const value = result.getText();
-            const now = Date.now();
-            if(value && !(value === lastZXingResult && (now - lastZXingTime) < DEDUPE_WINDOW_MS)){
-              lastZXingResult = value;
-              lastZXingTime = now;
-              addScan(value, {auto:true});
-            }
-          }
-          // NotFoundException fires continuously while no code is in view — ignore it
-        }
-      );
-      statusEl.textContent = 'Scanning...';
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        },
+        audio: false
+      });
+      video.srcObject = stream;
+      await video.play();
+      videoTrack = stream.getVideoTracks()[0];
+      statusEl.textContent = 'Frame the code, then tap Scan';
     }catch(err){
       statusEl.textContent = 'Camera access denied — enable it in browser settings';
       reticle.style.display = 'none';
-      scanline.style.display = 'none';
+      scanBtn.style.display = 'none';
     }
   }
+
+  // Best-effort tap-to-focus: many phone browsers support this, some (notably iOS Safari) silently ignore it
+  async function focusAt(){
+    if(!videoTrack || !videoTrack.getCapabilities) return;
+    try{
+      const caps = videoTrack.getCapabilities();
+      if(caps.focusMode && caps.focusMode.includes('single-shot')){
+        await videoTrack.applyConstraints({ advanced: [{ focusMode: 'single-shot' }] });
+      }
+    }catch(e){ /* not supported on this device — ignore */ }
+  }
+
+  reticle.addEventListener('click', focusAt);
+  video.addEventListener('click', focusAt);
+
+  async function captureAndScan(){
+    if(busy || !codeReader || !video.videoWidth) return;
+    busy = true;
+    scanBtn.classList.remove('miss');
+    scanBtn.classList.add('busy');
+    scanBtn.textContent = 'Scanning...';
+    scanline.classList.add('busy');
+    statusEl.textContent = 'Analyzing frame...';
+
+    await focusAt();
+    await new Promise(r => setTimeout(r, 180)); // brief pause to let autofocus settle
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    try{
+      const result = await codeReader.decodeFromImageUrl(canvas.toDataURL('image/png'));
+      const value = result.getText();
+      addScan(value, {auto:true});
+      statusEl.textContent = 'Scanned — tap Scan for the next one';
+      scanBtn.textContent = 'Scan';
+    }catch(err){
+      statusEl.textContent = 'No code found — reframe and try again';
+      scanBtn.classList.add('miss');
+      scanBtn.textContent = 'Scan';
+    }finally{
+      scanBtn.classList.remove('busy');
+      scanline.classList.remove('busy');
+      busy = false;
+    }
+  }
+
+  scanBtn.addEventListener('click', captureAndScan);
 
   function showUnsupported(message){
     cameraSection.innerHTML = '<div class="unsupported">' +
@@ -479,7 +548,7 @@
       '</div>';
   }
 
-  startScanner();
+  startCamera();
 })();
 </script>
 </body>
