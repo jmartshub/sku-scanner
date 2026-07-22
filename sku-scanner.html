@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SKU Scanner</title>
+<style>
+  :root{
+    --ink:#12161c;
+    --panel:#1b212b;
+    --line:#2a323e;
+    --accent:#5ee6a8;
+    --accent-dim:#2f7a5c;
+    --warn:#ff6b5e;
+    --text:#e8ecf1;
+    --sub:#8b96a5;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;
+    height:100%;
+    background:var(--ink);
+    color:var(--text);
+    font-family:'SF Mono','JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+    -webkit-tap-highlight-color:transparent;
+    overscroll-behavior:none;
+  }
+  .app{
+    display:flex;
+    flex-direction:column;
+    height:100dvh;
+  }
+  header{
+    padding:16px 18px 12px;
+    border-bottom:1px solid var(--line);
+    flex-shrink:0;
+  }
+  .eyebrow{
+    font-size:11px;
+    letter-spacing:0.18em;
+    text-transform:uppercase;
+    color:var(--accent);
+    margin:0 0 2px;
+  }
+  h1{
+    font-size:19px;
+    margin:0;
+    font-weight:600;
+    letter-spacing:-0.01em;
+  }
+  .camera-wrap{
+    position:relative;
+    flex:1;
+    min-height:0;
+    background:#000;
+    overflow:hidden;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  video{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+  }
+  .reticle{
+    position:absolute;
+    left:8%;
+    right:8%;
+    top:38%;
+    height:24%;
+    border:2px solid var(--accent);
+    border-radius:10px;
+    box-shadow:0 0 0 999px rgba(0,0,0,0.35);
+    pointer-events:none;
+  }
+  .reticle::before, .reticle::after{
+    content:"";
+    position:absolute;
+    left:0; right:0;
+    height:2px;
+    background:var(--accent);
+    opacity:0.5;
+  }
+  .scanline{
+    position:absolute;
+    left:8%;
+    right:8%;
+    top:38%;
+    height:2px;
+    background:var(--accent);
+    box-shadow:0 0 8px var(--accent);
+    animation:sweep 1.8s ease-in-out infinite;
+  }
+  @keyframes sweep{
+    0%{ transform:translateY(0); }
+    50%{ transform:translateY(calc(24vh * 0.24)); }
+    100%{ transform:translateY(0); }
+  }
+  .status{
+    position:absolute;
+    top:12px; left:0; right:0;
+    text-align:center;
+    font-size:12px;
+    color:var(--sub);
+    letter-spacing:0.04em;
+  }
+  .flash{
+    position:absolute; inset:0;
+    background:var(--accent);
+    opacity:0;
+    pointer-events:none;
+  }
+  .flash.hit{ animation:flash 320ms ease-out; }
+  @keyframes flash{ 0%{opacity:0.55;} 100%{opacity:0;} }
+
+  .unsupported{
+    padding:20px;
+    text-align:center;
+    color:var(--sub);
+    font-size:13px;
+    line-height:1.6;
+  }
+  .unsupported b{ color:var(--text); }
+
+  .manual-row{
+    display:flex;
+    gap:8px;
+    padding:12px 14px;
+    border-bottom:1px solid var(--line);
+    flex-shrink:0;
+  }
+  .manual-row input{
+    flex:1;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:8px;
+    color:var(--text);
+    padding:10px 12px;
+    font-family:inherit;
+    font-size:14px;
+  }
+  .manual-row input:focus{ outline:1px solid var(--accent); border-color:var(--accent); }
+  .manual-row button{
+    background:var(--accent-dim);
+    color:var(--text);
+    border:none;
+    border-radius:8px;
+    padding:0 16px;
+    font-family:inherit;
+    font-size:13px;
+    font-weight:600;
+  }
+
+  .last-scan{
+    padding:14px 18px;
+    border-bottom:1px solid var(--line);
+    flex-shrink:0;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+  }
+  .last-scan .code{
+    font-size:20px;
+    font-weight:700;
+    letter-spacing:0.01em;
+    word-break:break-all;
+  }
+  .last-scan .meta{
+    font-size:11px;
+    color:var(--sub);
+    margin-top:2px;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+  }
+  .copy-btn{
+    flex-shrink:0;
+    background:var(--accent);
+    color:#0a1310;
+    border:none;
+    border-radius:8px;
+    padding:10px 14px;
+    font-family:inherit;
+    font-size:12px;
+    font-weight:700;
+    letter-spacing:0.03em;
+  }
+  .copy-btn.copied{ background:var(--warn); color:#20100d; }
+  .placeholder-last{ color:var(--sub); font-size:13px; }
+
+  .history{
+    flex-shrink:0;
+    max-height:32vh;
+    overflow-y:auto;
+    border-top:1px solid var(--line);
+  }
+  .history-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:10px 18px 6px;
+  }
+  .history-head span{
+    font-size:11px;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:var(--sub);
+  }
+  .history-head button{
+    background:none;
+    border:none;
+    color:var(--sub);
+    font-family:inherit;
+    font-size:11px;
+    text-decoration:underline;
+  }
+  ul.log{
+    list-style:none;
+    margin:0;
+    padding:0 18px 10px;
+  }
+  ul.log li{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:9px 0;
+    border-bottom:1px solid var(--line);
+    gap:10px;
+  }
+  ul.log li:last-child{ border-bottom:none; }
+  ul.log .code{ font-size:14px; word-break:break-all; }
+  ul.log .time{ font-size:10px; color:var(--sub); flex-shrink:0; }
+  ul.log button{
+    background:none;
+    border:1px solid var(--line);
+    color:var(--sub);
+    border-radius:6px;
+    padding:4px 8px;
+    font-size:10px;
+    font-family:inherit;
+    flex-shrink:0;
+  }
+  .empty{ color:var(--sub); font-size:12px; padding:6px 0 14px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <p class="eyebrow">JMARTS Hub &middot; Tools</p>
+    <h1>SKU Scanner</h1>
+  </header>
+
+  <div id="cameraSection" class="camera-wrap">
+    <video id="video" playsinline muted autoplay></video>
+    <div class="reticle" id="reticle"></div>
+    <div class="scanline" id="scanline"></div>
+    <div class="status" id="status">Point camera at a barcode</div>
+    <div class="flash" id="flash"></div>
+  </div>
+
+  <div class="manual-row">
+    <input id="manualInput" type="text" inputmode="text" placeholder="Or type SKU manually" autocomplete="off" autocorrect="off" autocapitalize="off">
+    <button id="manualAdd">Add</button>
+  </div>
+
+  <div class="last-scan" id="lastScanRow">
+    <div>
+      <div class="placeholder-last" id="lastScanLabel">No code scanned yet</div>
+    </div>
+    <button class="copy-btn" id="copyLastBtn" style="display:none;">Copy</button>
+  </div>
+
+  <div class="history">
+    <div class="history-head">
+      <span>History</span>
+      <button id="clearHistory">Clear</button>
+    </div>
+    <ul class="log" id="log"></ul>
+  </div>
+</div>
+
+<script>
+(function(){
+  const video = document.getElementById('video');
+  const statusEl = document.getElementById('status');
+  const flashEl = document.getElementById('flash');
+  const reticle = document.getElementById('reticle');
+  const scanline = document.getElementById('scanline');
+  const cameraSection = document.getElementById('cameraSection');
+  const logEl = document.getElementById('log');
+  const lastScanLabel = document.getElementById('lastScanLabel');
+  const lastScanRow = document.getElementById('lastScanRow');
+  const copyLastBtn = document.getElementById('copyLastBtn');
+  const manualInput = document.getElementById('manualInput');
+  const manualAdd = document.getElementById('manualAdd');
+  const clearHistoryBtn = document.getElementById('clearHistory');
+
+  let history = [];
+  let lastCode = null;
+  let lastTimestamp = 0;
+  const DEDUPE_WINDOW_MS = 1800;
+
+  function timeString(){
+    const d = new Date();
+    let h = d.getHours();
+    const m = d.getMinutes().toString().padStart(2,'0');
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12; if(h === 0) h = 12;
+    return h + ':' + m + ' ' + ampm;
+  }
+
+  function copyText(text){
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      return navigator.clipboard.writeText(text);
+    }
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    return Promise.resolve();
+  }
+
+  function renderLastScan(code){
+    lastScanLabel.outerHTML = '';
+    const wrap = lastScanRow.querySelector('div');
+    wrap.innerHTML = '<div class="code">' + escapeHtml(code) + '</div><div class="meta">Last scanned &middot; ' + timeString() + '</div>';
+    copyLastBtn.style.display = 'inline-block';
+    copyLastBtn.classList.remove('copied');
+    copyLastBtn.textContent = 'Copy';
+  }
+
+  function escapeHtml(s){
+    return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function renderHistory(){
+    if(history.length === 0){
+      logEl.innerHTML = '<li class="empty" style="border:none;">Scanned codes will appear here</li>';
+      return;
+    }
+    logEl.innerHTML = history.map((item, idx) => (
+      '<li>' +
+        '<div><div class="code">' + escapeHtml(item.code) + '</div><div class="time">' + item.time + '</div></div>' +
+        '<button data-idx="' + idx + '">COPY</button>' +
+      '</li>'
+    )).join('');
+  }
+
+  logEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-idx]');
+    if(!btn) return;
+    const idx = parseInt(btn.getAttribute('data-idx'), 10);
+    const item = history[idx];
+    if(!item) return;
+    copyText(item.code).then(() => {
+      btn.textContent = 'DONE';
+      setTimeout(() => { btn.textContent = 'COPY'; }, 1200);
+    });
+  });
+
+  copyLastBtn.addEventListener('click', () => {
+    if(!lastCode) return;
+    copyText(lastCode).then(() => {
+      copyLastBtn.textContent = 'Copied';
+      copyLastBtn.classList.add('copied');
+      setTimeout(() => {
+        copyLastBtn.textContent = 'Copy';
+        copyLastBtn.classList.remove('copied');
+      }, 1200);
+    });
+  });
+
+  clearHistoryBtn.addEventListener('click', () => {
+    history = [];
+    renderHistory();
+  });
+
+  function addScan(code, {auto} = {auto:false}){
+    const now = Date.now();
+    if(auto && code === lastCode && (now - lastTimestamp) < DEDUPE_WINDOW_MS){
+      return;
+    }
+    lastCode = code;
+    lastTimestamp = now;
+    history.unshift({code, time: timeString()});
+    if(history.length > 50) history.pop();
+    renderLastScan(code);
+    renderHistory();
+    if(auto){
+      flashEl.classList.remove('hit');
+      void flashEl.offsetWidth;
+      flashEl.classList.add('hit');
+      copyText(code);
+      copyLastBtn.textContent = 'Copied';
+      copyLastBtn.classList.add('copied');
+      setTimeout(() => {
+        copyLastBtn.textContent = 'Copy';
+        copyLastBtn.classList.remove('copied');
+      }, 1200);
+      if(navigator.vibrate) navigator.vibrate(60);
+    }
+  }
+
+  manualAdd.addEventListener('click', () => {
+    const val = manualInput.value.trim();
+    if(!val) return;
+    addScan(val, {auto:false});
+    manualInput.value = '';
+  });
+  manualInput.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter'){ manualAdd.click(); }
+  });
+
+  renderHistory();
+
+  // Camera + barcode detection
+  async function startScanner(){
+    if(!('BarcodeDetector' in window)){
+      showUnsupported();
+      return;
+    }
+
+    let formats = ['ean_13','ean_8','upc_a','upc_e','code_128','code_39','itf','qr_code'];
+    try{
+      const supported = await window.BarcodeDetector.getSupportedFormats();
+      formats = formats.filter(f => supported.includes(f));
+      if(formats.length === 0) formats = supported;
+    }catch(e){}
+
+    let detector;
+    try{
+      detector = new window.BarcodeDetector({formats});
+    }catch(e){
+      showUnsupported();
+      return;
+    }
+
+    let stream;
+    try{
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+        audio: false
+      });
+    }catch(err){
+      statusEl.textContent = 'Camera access denied — enable it in browser settings';
+      reticle.style.display = 'none';
+      scanline.style.display = 'none';
+      return;
+    }
+
+    video.srcObject = stream;
+    await video.play();
+    statusEl.textContent = 'Scanning...';
+
+    let scanning = true;
+    async function tick(){
+      if(!scanning) return;
+      try{
+        const barcodes = await detector.detect(video);
+        if(barcodes.length > 0){
+          const value = barcodes[0].rawValue;
+          if(value) addScan(value, {auto:true});
+        }
+      }catch(e){
+        // frame not ready or transient error, ignore
+      }
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+
+    document.addEventListener('visibilitychange', () => {
+      scanning = document.visibilityState === 'visible';
+      if(scanning) requestAnimationFrame(tick);
+    });
+  }
+
+  function showUnsupported(){
+    cameraSection.innerHTML = '<div class="unsupported">' +
+      '<b>Live camera scanning isn\'t supported in this browser.</b><br><br>' +
+      'This works best in <b>Chrome on Android</b>. On iPhone/Safari, use the manual entry field below to add SKUs — everything else (copy, history) still works.' +
+      '</div>';
+  }
+
+  startScanner();
+})();
+</script>
+</body>
+</html>
