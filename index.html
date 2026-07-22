@@ -78,10 +78,60 @@
     opacity:0.85;
     pointer-events:none;
   }
-  .corner.tl{ top:7%; left:7%; border-right:none; border-bottom:none; border-top-left-radius:8px; }
-  .corner.tr{ top:7%; right:7%; border-left:none; border-bottom:none; border-top-right-radius:8px; }
-  .corner.bl{ bottom:7%; left:7%; border-right:none; border-top:none; border-bottom-left-radius:8px; }
-  .corner.br{ bottom:7%; right:7%; border-left:none; border-top:none; border-bottom-right-radius:8px; }
+  .corner.tl{ top:26%; left:22%; border-right:none; border-bottom:none; border-top-left-radius:8px; }
+  .corner.tr{ top:26%; right:22%; border-left:none; border-bottom:none; border-top-right-radius:8px; }
+  .corner.bl{ bottom:26%; left:22%; border-right:none; border-top:none; border-bottom-left-radius:8px; }
+  .corner.br{ bottom:26%; right:22%; border-left:none; border-top:none; border-bottom-right-radius:8px; }
+
+  .zoom-row{
+    position:absolute;
+    left:14px; right:14px;
+    bottom:12px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    background:rgba(10,11,15,0.62);
+    backdrop-filter:blur(6px);
+    -webkit-backdrop-filter:blur(6px);
+    border-radius:100px;
+    padding:6px 10px;
+  }
+  .zoom-row button{
+    width:26px; height:26px;
+    flex-shrink:0;
+    border-radius:50%;
+    border:none;
+    background:var(--panel-2);
+    color:var(--text);
+    font-size:15px;
+    font-weight:700;
+    line-height:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .zoom-row input[type="range"]{
+    flex:1;
+    -webkit-appearance:none;
+    appearance:none;
+    height:3px;
+    border-radius:3px;
+    background:var(--line);
+    outline:none;
+  }
+  .zoom-row input[type="range"]::-webkit-slider-thumb{
+    -webkit-appearance:none;
+    width:16px; height:16px;
+    border-radius:50%;
+    background:var(--accent);
+  }
+  .zoom-row .zoom-label{
+    font-size:10.5px;
+    color:var(--sub);
+    flex-shrink:0;
+    width:30px;
+    text-align:center;
+  }
 
   .status-pill{
     position:absolute;
@@ -290,6 +340,12 @@
     <div class="corner br"></div>
     <div class="status-pill" id="status">Loading camera...</div>
     <div class="flash" id="flash"></div>
+    <div class="zoom-row" id="zoomRow">
+      <button id="zoomOut" type="button">&minus;</button>
+      <input id="zoomSlider" type="range" min="1" max="3" step="0.05" value="1">
+      <button id="zoomIn" type="button">+</button>
+      <span class="zoom-label" id="zoomLabel">1.0x</span>
+    </div>
   </div>
 
   <button class="scan-btn" id="scanBtn">Scan</button>
@@ -429,10 +485,67 @@
 
   renderHistory();
 
-  // Camera preview + tap-to-scan capture (ZXing — pure JS, works on iOS Safari and Android Chrome alike)
+  const zoomRow = document.getElementById('zoomRow');
+  const zoomSlider = document.getElementById('zoomSlider');
+  const zoomLabel = document.getElementById('zoomLabel');
+  const zoomOutBtn = document.getElementById('zoomOut');
+  const zoomInBtn = document.getElementById('zoomIn');
+
+  // Camera preview + tap-to-scan capture (ZXing + jsQR — works on iOS Safari and Android Chrome alike)
   let codeReader = null;
   let videoTrack = null;
   let busy = false;
+  let hasHardwareZoom = false;
+  let zoomMin = 1, zoomMax = 3, zoomStep = 0.05;
+  let zoomLevel = 1; // used for digital-zoom fallback crop math
+
+  function setZoomLabel(v){
+    zoomLabel.textContent = v.toFixed(1) + 'x';
+  }
+
+  async function applyZoom(value){
+    value = Math.min(zoomMax, Math.max(zoomMin, value));
+    zoomLevel = value;
+    zoomSlider.value = value;
+    setZoomLabel(value);
+    if(hasHardwareZoom && videoTrack){
+      try{ await videoTrack.applyConstraints({ advanced: [{ zoom: value }] }); }
+      catch(e){ /* ignore — fall through, digital crop math still applies below */ }
+    }else{
+      // Digital zoom fallback: visually scale the preview; the decode crop is
+      // shrunk to match in captureAndScan() so what you frame is what gets scanned.
+      video.style.transform = 'scale(' + value + ')';
+    }
+  }
+
+  zoomSlider.addEventListener('input', () => applyZoom(parseFloat(zoomSlider.value)));
+  zoomOutBtn.addEventListener('click', () => applyZoom(zoomLevel - 0.2));
+  zoomInBtn.addEventListener('click', () => applyZoom(zoomLevel + 0.2));
+
+  // Pinch-to-zoom
+  let pinchStartDist = null;
+  let pinchStartZoom = 1;
+  function touchDist(touches){
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.hypot(dx, dy);
+  }
+  cameraSection.addEventListener('touchstart', (e) => {
+    if(e.touches.length === 2){
+      pinchStartDist = touchDist(e.touches);
+      pinchStartZoom = zoomLevel;
+    }
+  }, { passive: true });
+  cameraSection.addEventListener('touchmove', (e) => {
+    if(e.touches.length === 2 && pinchStartDist){
+      e.preventDefault();
+      const ratio = touchDist(e.touches) / pinchStartDist;
+      applyZoom(pinchStartZoom * ratio);
+    }
+  }, { passive: false });
+  cameraSection.addEventListener('touchend', (e) => {
+    if(e.touches.length < 2) pinchStartDist = null;
+  });
 
   async function startCamera(){
     if(typeof ZXing === 'undefined'){
@@ -467,12 +580,32 @@
       video.srcObject = stream;
       await video.play();
       videoTrack = stream.getVideoTracks()[0];
+
+      if(videoTrack.getCapabilities){
+        try{
+          const caps = videoTrack.getCapabilities();
+          if(caps.zoom){
+            hasHardwareZoom = true;
+            zoomMin = caps.zoom.min ?? 1;
+            zoomMax = caps.zoom.max ?? 3;
+            zoomStep = caps.zoom.step ?? 0.1;
+            zoomSlider.min = zoomMin;
+            zoomSlider.max = zoomMax;
+            zoomSlider.step = zoomStep;
+            zoomSlider.value = zoomMin;
+            zoomLevel = zoomMin;
+            setZoomLabel(zoomMin);
+          }
+        }catch(e){ /* zoom capability check failed — digital fallback still works */ }
+      }
+
       statusEl.textContent = 'Frame the code, then tap Scan';
       scanBtn.disabled = false;
     }catch(err){
       statusEl.textContent = 'Camera access denied — enable it in Settings';
       document.querySelectorAll('.corner').forEach(el => el.style.display = 'none');
       scanBtn.style.display = 'none';
+      zoomRow.style.display = 'none';
     }
   }
 
@@ -520,16 +653,28 @@
     await focusAt();
     await new Promise(r => setTimeout(r, 150));
 
+    // Crop to the centered box shown by the corner-bracket guide (roughly the middle
+    // 56% of the frame) so a page with several barcodes only scans the one that's
+    // actually framed, instead of whichever one ZXing/jsQR happens to find first.
+    // When using digital-zoom fallback (no hardware zoom track), shrink the crop
+    // further to match what's visually framed after the CSS scale.
+    const baseCropFraction = 0.56;
+    const effectiveFraction = hasHardwareZoom ? baseCropFraction : Math.min(baseCropFraction, baseCropFraction / zoomLevel);
+    const nativeSide = Math.min(video.videoWidth, video.videoHeight);
+    const cropSide = Math.max(64, nativeSide * effectiveFraction);
+    const sx = (video.videoWidth - cropSide) / 2;
+    const sy = (video.videoHeight - cropSide) / 2;
+
     const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    canvas.width = cropSide;
+    canvas.height = cropSide;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
     const deadline = Date.now() + 4000;
     let text = null;
 
     while(Date.now() < deadline){
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      ctx.drawImage(video, sx, sy, cropSide, cropSide, 0, 0, cropSide, cropSide);
       text = await decodeCanvas(canvas);
       if(text) break;
       await new Promise(r => setTimeout(r, 120));
