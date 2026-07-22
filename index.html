@@ -524,7 +524,9 @@
     canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
 
     try{
-      const result = await codeReader.decodeFromImageUrl(canvas.toDataURL('image/png'));
+      const result = typeof codeReader.decodeFromCanvas === 'function'
+        ? await codeReader.decodeFromCanvas(canvas)
+        : await codeReader.decodeFromImageUrl(canvas.toDataURL('image/png'));
       addScan(result.getText());
       statusEl.textContent = 'Scanned — tap to scan the next one';
     }catch(err){
