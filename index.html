@@ -21,22 +21,19 @@
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{
     margin:0;
-    height:100%;
     background:var(--bg);
     color:var(--text);
     font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
-    overscroll-behavior:none;
   }
   .app{
-    display:flex;
-    flex-direction:column;
-    height:100dvh;
-    padding-top:var(--safe-t);
+    padding-top:calc(var(--safe-t) + 6px);
+    padding-bottom:calc(var(--safe-b) + 10px);
+    max-width:480px;
+    margin:0 auto;
   }
 
   header{
-    padding:14px 20px 10px;
-    flex-shrink:0;
+    padding:8px 18px 10px;
     display:flex;
     align-items:baseline;
     justify-content:space-between;
@@ -60,44 +57,42 @@
 
   .camera-wrap{
     position:relative;
-    margin:2px 16px 14px;
-    border-radius:22px;
+    margin:2px 16px 12px;
+    width:calc(100% - 32px);
+    aspect-ratio:1/1;
+    border-radius:20px;
     overflow:hidden;
     background:#000;
-    flex:1;
-    min-height:0;
-    display:flex;
-    align-items:center;
-    justify-content:center;
     box-shadow:0 0 0 1px var(--line);
   }
   video{
     width:100%;
     height:100%;
     object-fit:cover;
+    display:block;
   }
   .corner{
     position:absolute;
-    width:26px; height:26px;
+    width:24px; height:24px;
     border:2.5px solid var(--accent);
     opacity:0.85;
     pointer-events:none;
   }
-  .corner.tl{ top:16%; left:9%; border-right:none; border-bottom:none; border-top-left-radius:8px; }
-  .corner.tr{ top:16%; right:9%; border-left:none; border-bottom:none; border-top-right-radius:8px; }
-  .corner.bl{ bottom:24%; left:9%; border-right:none; border-top:none; border-bottom-left-radius:8px; }
-  .corner.br{ bottom:24%; right:9%; border-left:none; border-top:none; border-bottom-right-radius:8px; }
+  .corner.tl{ top:7%; left:7%; border-right:none; border-bottom:none; border-top-left-radius:8px; }
+  .corner.tr{ top:7%; right:7%; border-left:none; border-bottom:none; border-top-right-radius:8px; }
+  .corner.bl{ bottom:7%; left:7%; border-right:none; border-top:none; border-bottom-left-radius:8px; }
+  .corner.br{ bottom:7%; right:7%; border-left:none; border-top:none; border-bottom-right-radius:8px; }
 
   .status-pill{
     position:absolute;
-    top:14px; left:50%;
+    top:12px; left:50%;
     transform:translateX(-50%);
-    background:rgba(10,11,15,0.6);
+    background:rgba(10,11,15,0.62);
     backdrop-filter:blur(6px);
     -webkit-backdrop-filter:blur(6px);
-    padding:7px 14px;
+    padding:6px 13px;
     border-radius:100px;
-    font-size:12px;
+    font-size:11.5px;
     color:var(--text);
     letter-spacing:0.01em;
     white-space:nowrap;
@@ -115,37 +110,23 @@
   .flash.hit{ animation:flash 320ms ease-out; }
   @keyframes flash{ 0%{opacity:0.5;} 100%{opacity:0;} }
 
-  .shutter-wrap{
-    position:absolute;
-    bottom:22px; left:0; right:0;
-    display:flex;
-    justify-content:center;
-  }
-  .shutter{
-    width:70px; height:70px;
-    border-radius:50%;
-    background:rgba(20,22,29,0.55);
-    backdrop-filter:blur(6px);
-    -webkit-backdrop-filter:blur(6px);
-    border:3px solid var(--text);
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    padding:0;
-  }
-  .shutter-inner{
-    width:56px; height:56px;
-    border-radius:50%;
+  .scan-btn{
+    display:block;
+    width:calc(100% - 32px);
+    margin:0 16px 14px;
     background:var(--accent);
-    transition:transform 120ms ease, background 120ms ease;
+    color:var(--accent-ink);
+    border:none;
+    border-radius:14px;
+    padding:15px 0;
+    font-family:inherit;
+    font-size:15px;
+    font-weight:700;
+    letter-spacing:0.02em;
   }
-  .shutter:active .shutter-inner{ transform:scale(0.88); }
-  .shutter.busy .shutter-inner{
-    background:var(--sub);
-    animation:pulse 0.9s ease-in-out infinite;
-  }
-  .shutter.miss .shutter-inner{ background:var(--miss); }
-  @keyframes pulse{ 0%,100%{ opacity:1;} 50%{ opacity:0.45;} }
+  .scan-btn:active{ transform:scale(0.98); }
+  .scan-btn.busy{ background:var(--panel-2); color:var(--sub); }
+  .scan-btn.miss{ background:var(--miss); color:#20100d; }
 
   .unsupported{
     padding:28px 24px;
@@ -162,7 +143,6 @@
     background:var(--panel);
     border:1px solid var(--line);
     border-radius:16px;
-    flex-shrink:0;
     display:flex;
     align-items:center;
     justify-content:space-between;
@@ -208,7 +188,6 @@
     display:flex;
     gap:8px;
     padding:0 16px 10px;
-    flex-shrink:0;
   }
   .manual-row input{
     flex:1;
@@ -236,11 +215,9 @@
   }
 
   .history{
-    flex-shrink:0;
-    max-height:26vh;
+    max-height:34vh;
     overflow-y:auto;
     border-top:1px solid var(--line);
-    padding-bottom:calc(6px + var(--safe-b));
   }
   .history-head{
     display:flex;
@@ -310,12 +287,11 @@
     <div class="corner tr"></div>
     <div class="corner bl"></div>
     <div class="corner br"></div>
-    <div class="status-pill" id="status">Frame the code, then tap to scan</div>
+    <div class="status-pill" id="status">Loading camera...</div>
     <div class="flash" id="flash"></div>
-    <div class="shutter-wrap">
-      <button class="shutter" id="scanBtn" aria-label="Scan"><span class="shutter-inner"></span></button>
-    </div>
   </div>
+
+  <button class="scan-btn" id="scanBtn">Scan</button>
 
   <div class="result-card" id="resultCard">
     <div id="resultBody"><span class="empty">No code scanned yet</span></div>
@@ -476,7 +452,7 @@
       ZXing.BarcodeFormat.DATA_MATRIX
     ]);
     hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-    codeReader = new ZXing.BrowserMultiFormatReader(hints);
+    codeReader = new ZXing.BrowserMultiFormatReader(hints, 150);
 
     try{
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -490,7 +466,8 @@
       video.srcObject = stream;
       await video.play();
       videoTrack = stream.getVideoTracks()[0];
-      statusEl.textContent = 'Frame the code, then tap to scan';
+      statusEl.textContent = 'Frame the code, then tap Scan';
+      scanBtn.disabled = false;
     }catch(err){
       statusEl.textContent = 'Camera access denied — enable it in Settings';
       document.querySelectorAll('.corner').forEach(el => el.style.display = 'none');
@@ -508,34 +485,54 @@
     }catch(e){ /* not supported on this device — ignore */ }
   }
 
+  // Runs ZXing's own continuous per-frame decode loop directly against the live <video>
+  // element for a short window after each tap. This is far more reliable than grabbing a
+  // single still frame, especially for denser 2D codes like QR, since it gets several
+  // chances to catch a sharp, well-focused frame instead of just one.
   async function captureAndScan(){
     if(busy || !codeReader || !video.videoWidth) return;
     busy = true;
     scanBtn.classList.remove('miss');
     scanBtn.classList.add('busy');
+    scanBtn.textContent = 'Scanning...';
     statusEl.textContent = 'Analyzing...';
 
     await focusAt();
-    await new Promise(r => setTimeout(r, 180));
 
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+    let settled = false;
+    let controls = null;
+
+    function finish(found, resultOrNull){
+      if(settled) return;
+      settled = true;
+      if(controls){ try{ controls.stop(); }catch(e){} }
+      scanBtn.classList.remove('busy');
+      scanBtn.textContent = 'Scan';
+      busy = false;
+      if(found){
+        addScan(resultOrNull.getText());
+        statusEl.textContent = 'Scanned — tap Scan for the next one';
+      }else{
+        statusEl.textContent = 'No code found — reframe and try again';
+        scanBtn.classList.add('miss');
+        setTimeout(() => scanBtn.classList.remove('miss'), 900);
+      }
+    }
+
+    const timeoutId = setTimeout(() => finish(false, null), 5000);
 
     try{
-      const result = typeof codeReader.decodeFromCanvas === 'function'
-        ? await codeReader.decodeFromCanvas(canvas)
-        : await codeReader.decodeFromImageUrl(canvas.toDataURL('image/png'));
-      addScan(result.getText());
-      statusEl.textContent = 'Scanned — tap to scan the next one';
-    }catch(err){
-      statusEl.textContent = 'No code found — reframe and try again';
-      scanBtn.classList.add('miss');
-      setTimeout(() => scanBtn.classList.remove('miss'), 900);
-    }finally{
-      scanBtn.classList.remove('busy');
-      busy = false;
+      controls = await codeReader.decodeFromVideoElement(video, (result, err, ctrls) => {
+        if(ctrls) controls = ctrls;
+        if(result){
+          clearTimeout(timeoutId);
+          finish(true, result);
+        }
+        // per-frame NotFoundException while no code is visible yet — ignore and keep trying
+      });
+    }catch(e){
+      clearTimeout(timeoutId);
+      finish(false, null);
     }
   }
 
