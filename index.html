@@ -273,6 +273,7 @@
   .empty-log{ color:var(--sub); font-size:12.5px; padding:6px 0 12px; }
 </style>
 <script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
+<script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 </head>
 <body>
 <div class="app">
@@ -485,12 +486,31 @@
     }catch(e){ /* not supported on this device — ignore */ }
   }
 
-  // Runs ZXing's own continuous per-frame decode loop directly against the live <video>
-  // element for a short window after each tap. This is far more reliable than grabbing a
-  // single still frame, especially for denser 2D codes like QR, since it gets several
-  // chances to catch a sharp, well-focused frame instead of just one.
+  // Runs our own frame-capture loop and tries two independent decoders on every frame:
+  // jsQR first (a dedicated, extremely reliable QR-only decoder with no dependency on
+  // which ZXing convenience methods happen to be bundled), then ZXing's decodeFromImageUrl
+  // as a fallback for 1D barcodes (EAN/UPC/Code128/etc), which is confirmed to work in
+  // this build.
+  async function decodeCanvas(canvas){
+    if(typeof jsQR === 'function'){
+      try{
+        const ctx = canvas.getContext('2d');
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const qr = jsQR(imageData.data, imageData.width, imageData.height);
+        if(qr && qr.data) return qr.data;
+      }catch(e){ /* ignore, try ZXing next */ }
+    }
+    if(codeReader){
+      try{
+        const result = await codeReader.decodeFromImageUrl(canvas.toDataURL('image/png'));
+        if(result) return result.getText();
+      }catch(e){ /* not found this way either */ }
+    }
+    return null;
+  }
+
   async function captureAndScan(){
-    if(busy || !codeReader || !video.videoWidth) return;
+    if(busy || !video.videoWidth) return;
     busy = true;
     scanBtn.classList.remove('miss');
     scanBtn.classList.add('busy');
@@ -498,41 +518,34 @@
     statusEl.textContent = 'Analyzing...';
 
     await focusAt();
+    await new Promise(r => setTimeout(r, 150));
 
-    let settled = false;
-    let controls = null;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
-    function finish(found, resultOrNull){
-      if(settled) return;
-      settled = true;
-      if(controls){ try{ controls.stop(); }catch(e){} }
-      scanBtn.classList.remove('busy');
-      scanBtn.textContent = 'Scan';
-      busy = false;
-      if(found){
-        addScan(resultOrNull.getText());
-        statusEl.textContent = 'Scanned — tap Scan for the next one';
-      }else{
-        statusEl.textContent = 'No code found — reframe and try again';
-        scanBtn.classList.add('miss');
-        setTimeout(() => scanBtn.classList.remove('miss'), 900);
-      }
+    const deadline = Date.now() + 4000;
+    let text = null;
+
+    while(Date.now() < deadline){
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      text = await decodeCanvas(canvas);
+      if(text) break;
+      await new Promise(r => setTimeout(r, 120));
     }
 
-    const timeoutId = setTimeout(() => finish(false, null), 5000);
+    scanBtn.classList.remove('busy');
+    scanBtn.textContent = 'Scan';
+    busy = false;
 
-    try{
-      controls = await codeReader.decodeFromVideoElement(video, (result, err, ctrls) => {
-        if(ctrls) controls = ctrls;
-        if(result){
-          clearTimeout(timeoutId);
-          finish(true, result);
-        }
-        // per-frame NotFoundException while no code is visible yet — ignore and keep trying
-      });
-    }catch(e){
-      clearTimeout(timeoutId);
-      finish(false, null);
+    if(text){
+      addScan(text);
+      statusEl.textContent = 'Scanned — tap Scan for the next one';
+    }else{
+      statusEl.textContent = 'No code found — reframe and try again';
+      scanBtn.classList.add('miss');
+      setTimeout(() => scanBtn.classList.remove('miss'), 900);
     }
   }
 
